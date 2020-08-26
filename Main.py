@@ -12,8 +12,9 @@ From Vescent Oscillator
 Counter
 - log rep rate on counter
 
-Temperature sensor
+Slice QTC
 - log room temp
+- log internal box temp
 
 Powermeter
 - log optical power
@@ -22,36 +23,49 @@ Powermeter
 
 """
 
-import SLICEDevice
+import SLICEDevice, USBDevice, NIUSB6210Device
 import os
 import time
-import numpy as np
+
 
 
 def main():
-    # TIME AND INTERVAL IN WHICH TO TAKE DATA
-    totaltime = 50 # seconds
-    timeinterval = 10 #seconds
+    # INSTRAMENT ADDRESSES
+    countername = 'USB0::0x0957::0x1707::MY50002091::0::INSTR'
+    osccomport = 5
+    qtcport = 3
+    
+    # DATA TAKING INTERVAL
+    timeinterval = 1 #seconds
 
     # START TIME OF THE PROGRAM
     itime = time.strftime("%Y-%m-%d_%H-%M-%S")    
     
-    # MEASUREMENT OBJECTS
-    #Counter = GPIBDevice.GPIBDevice(1,1)
-    Oscillator = SLICEDevice.SLICE(3)
-    
-    # DATA TAKING OBJECTS
-    #CounterData = DataFile(itime,"CounterData")
-    ModeLockData = DataFile(itime,"ModeLockData")
-    CavTempData = DataFile(itime,"CavityTempData")
     
     try:
-        for i in range(0,totaltime,timeinterval):
-            print("Time {} out of {}".format(str(i),str(totaltime)))
+        # OPEN DEVICES
+        Counter = USBDevice.USBDevice(countername)
+        Oscillator = SLICEDevice.SLICE(osccomport)
+        QTC = SLICEDevice.SLICE(qtcport)
+        Photodetector = NIUSB6210Device.NIUSB6210Device()
+        
+        # DATA TAKING OBJECTS
+        CounterData = DataFile(itime,"CounterData")
+        ModeLockData = DataFile(itime,"ModeLockData")
+        CavTempData = DataFile(itime,"CavityTempData")
+        InBoxTempData = DataFile(itime, "InBoxTempData")
+        RoomTempData = DataFile(itime, "RoomTempData")
+        PhotodetectorData = DataFile(itime, "PhotodetectorData")
+        
+        i = 0
+        # DATA TAKING LOOP
+        while(True):
+            print("Measurement Number {}".format(str(i)))
+            i += 1
             
             # COLLECT AND SAVE COUNTER DATA
-            #countervalue=Counter.querydevice('FETC?')
-            #CounterData.appendData(countervalue)
+            counterval = Counter.send(":SENSe:DATA?")
+            CounterData.appendData(counterval)
             
             # COLLECT AND SAVE MODELOCKED STATUS
             modelockval = Oscillator.SliceSend('MODELOK?')
@@ -65,19 +79,36 @@ def main():
             cavitytemp = Oscillator.SliceSend('CAVTEMP?')
             CavTempData.appendData(cavitytemp)
             
+            # COLLECT AND SAVE IN BOX TEMPERATURE
+            inboxtemp = QTC.SliceSend('TEMP? 1')
+            InBoxTempData.appendData(inboxtemp)
+            
+            # COLLECT AND SAVE ROOM TEMP
+            roomtemp = QTC.SliceSend('TEMP? 2')
+            RoomTempData.appendData(roomtemp)
+            
+            # COLLECT AND SAVE PHOTODETECTOR POWER
+            pdvoltage = Photodetector.read()
+            PhotodetectorData.appendData(pdvoltage)
             
             # WAIT A TIME INTERVAL
-    
             time.sleep(timeinterval)
+            
     except KeyboardInterrupt:
         print("Keyboard Interrupt Triggered")
+        
     finally:
         # CLOSE DEVICES
         Oscillator.close()
-        #Counter.close()
-        # MAKE SURE DATA FILES ARE CLOSED
+        Counter.close()
+        QTC.close()
+        
+        # ENSURE DATA FILES ARE CLOSED
         ModeLockData.close()
         CavTempData.close()
+        CounterData.close()
+        InBoxTempData.close()
+        RoomTempData.close()
     
     
     return None
