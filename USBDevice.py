@@ -14,6 +14,9 @@ class USBDevice:
         self.inst = pyvisa.ResourceManager().open_resource(rname)
         return None
     
+    def settimeout(self,timeout):
+        self.inst.timeout = timeout+1000
+    
     def send(self,command):
         return self.inst.query(command).strip('\r\n')
     
@@ -25,7 +28,10 @@ class USBDevice:
 
 # CODE FOR TESTING
 if __name__=="__main__":
-    counter = USBDevice('USB0::0x0957::0x1707::MY50002091::0::INSTR')
-    print(counter.send("*IDN?"))
-    print(counter.send(":SENSe:DATA?"))
-    counter.close()
+    try:
+        counter = USBDevice('USB0::0x0957::0x1707::MY50002091::0::INSTR')
+        print(counter.send("*IDN?"))
+        # counter.settimeout(10000)
+        # print(counter.send(":INITiate:CONTinuous ON"))
+    finally:
+        counter.close()

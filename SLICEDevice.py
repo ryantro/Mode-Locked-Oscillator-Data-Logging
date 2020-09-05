@@ -44,6 +44,9 @@ class SLICE:
 
 # FOR TESTING PURPOSES    
 if __name__=="__main__":
-    A = SLICE(3)
-    print(A.SliceSend('Temp? 2'))
-    A.close()
+    try:
+        A = SLICE(5)
+        print(A.SliceSend('CAVTEMP?'))
+        # print("ModeLockRMSThreshold = +"+A.SliceSend('MLRMTHR?'))
+    finally:
+        A.close()
